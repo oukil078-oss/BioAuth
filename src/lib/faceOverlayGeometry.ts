@@ -56,10 +56,39 @@ function parseObjectPosition(position: string): { x: AxisPosition; y: AxisPositi
     };
   }
 
-  const first = parseAxisPositionToken(tokens[0], 'x');
-  const second = parseAxisPositionToken(tokens[1] ?? '50%', 'y');
+  if (tokens.length === 1) {
+    const single = tokens[0].toLowerCase();
+    const verticalKeywords = new Set(['top', 'bottom']);
+    if (verticalKeywords.has(single)) {
+      return {
+        x: { ratio: 0.5, pixelOffset: 0, isPixel: false },
+        y: parseAxisPositionToken(single, 'y'),
+      };
+    }
 
-  return { x: first, y: second };
+    return {
+      x: parseAxisPositionToken(single, 'x'),
+      y: { ratio: 0.5, pixelOffset: 0, isPixel: false },
+    };
+  }
+
+  const horizontalKeywords = new Set(['left', 'center', 'right']);
+  const verticalKeywords = new Set(['top', 'center', 'bottom']);
+
+  const firstToken = tokens[0].toLowerCase();
+  const secondToken = tokens[1].toLowerCase();
+
+  if (verticalKeywords.has(firstToken) && horizontalKeywords.has(secondToken)) {
+    return {
+      x: parseAxisPositionToken(secondToken, 'x'),
+      y: parseAxisPositionToken(firstToken, 'y'),
+    };
+  }
+
+  return {
+    x: parseAxisPositionToken(firstToken, 'x'),
+    y: parseAxisPositionToken(secondToken, 'y'),
+  };
 }
 
 function resolveRenderedRect({

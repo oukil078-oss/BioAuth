@@ -22,6 +22,7 @@ interface FaceOverlay {
   label: string;
   status: 'known' | 'unknown' | 'admin';
   accountStatus?: string;
+  adminTag?: string;
 }
 
 interface Props {
@@ -159,9 +160,10 @@ export default function CameraView({ adminId, onEvent }: Props) {
         };
 
         if (result.matched && result.face) {
-          if (result.face.user_id === adminId || result.face.is_admin || result.face.username === 'Zakkk') {
-            overlay.label = 'Zakkk';
+          if (result.face.user_id === adminId || result.face.is_admin) {
+            overlay.label = result.face.display_label || result.face.username || 'ADMIN';
             overlay.status = 'admin';
+            overlay.adminTag = result.face.user_id === adminId ? 'You' : 'Protected';
           } else {
             overlay.label = result.face.username;
             overlay.status = 'known';
@@ -291,11 +293,11 @@ export default function CameraView({ adminId, onEvent }: Props) {
                   }}
                 >
                   <ShieldAlert className="w-3 h-3 text-emerald-200" />
-                  <span className="text-[11px] font-bold text-white tracking-wide whitespace-nowrap">Zakkk</span>
+                  <span className="text-[11px] font-bold text-white tracking-wide whitespace-nowrap">{face.label}</span>
                 </div>
                 <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: '-24px' }}>
                   <span className="text-[9px] font-semibold text-emerald-300 bg-emerald-900/60 border border-emerald-500/30 rounded-full px-2.5 py-0.5 whitespace-nowrap uppercase tracking-wider">
-                    Protected
+                    {face.adminTag || 'Protected'}
                   </span>
                 </div>
               </>

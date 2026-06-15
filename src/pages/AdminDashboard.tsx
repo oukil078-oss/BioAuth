@@ -48,7 +48,10 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({ total: 0, active: 0, inactive: 0, enrolled: 0, unknown_detections: 0 });
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [events, setEvents] = useState<RecognitionEvent[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth >= 1024;
+  });
 
   const admin = sessionStorage.getItem('admin');
   const adminData = admin ? JSON.parse(admin) : null;
@@ -82,7 +85,7 @@ export default function AdminDashboard() {
   if (!adminData) return null;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
+    <div className="min-h-screen bg-slate-950 flex overflow-x-hidden">
       <AdminSidebar
         currentView={currentView}
         onViewChange={setCurrentView}
@@ -90,7 +93,7 @@ export default function AdminDashboard() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         <AdminTopBar
           admin={adminData}
           onLogout={handleLogout}
