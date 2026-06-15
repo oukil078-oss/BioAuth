@@ -33,21 +33,37 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.biometric_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "service_select_users" ON public.users FOR SELECT TO service_role USING (true);
-CREATE POLICY "service_insert_users" ON public.users FOR INSERT TO service_role WITH CHECK (true);
-CREATE POLICY "service_update_users" ON public.users FOR UPDATE TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "service_delete_users" ON public.users FOR DELETE TO service_role USING (true);
+-- RLS policies for users (service role only for write, anon can read own via edge functions)
+CREATE POLICY "service_select_users" ON public.users FOR SELECT
+  TO service_role USING (true);
+CREATE POLICY "service_insert_users" ON public.users FOR INSERT
+  TO service_role WITH CHECK (true);
+CREATE POLICY "service_update_users" ON public.users FOR UPDATE
+  TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_delete_users" ON public.users FOR DELETE
+  TO service_role USING (true);
 
-CREATE POLICY "service_select_biometric" ON public.biometric_profiles FOR SELECT TO service_role USING (true);
-CREATE POLICY "service_insert_biometric" ON public.biometric_profiles FOR INSERT TO service_role WITH CHECK (true);
-CREATE POLICY "service_update_biometric" ON public.biometric_profiles FOR UPDATE TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "service_delete_biometric" ON public.biometric_profiles FOR DELETE TO service_role USING (true);
+-- RLS policies for biometric_profiles (service role only)
+CREATE POLICY "service_select_biometric" ON public.biometric_profiles FOR SELECT
+  TO service_role USING (true);
+CREATE POLICY "service_insert_biometric" ON public.biometric_profiles FOR INSERT
+  TO service_role WITH CHECK (true);
+CREATE POLICY "service_update_biometric" ON public.biometric_profiles FOR UPDATE
+  TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_delete_biometric" ON public.biometric_profiles FOR DELETE
+  TO service_role USING (true);
 
-CREATE POLICY "service_select_attempts" ON public.login_attempts FOR SELECT TO service_role USING (true);
-CREATE POLICY "service_insert_attempts" ON public.login_attempts FOR INSERT TO service_role WITH CHECK (true);
-CREATE POLICY "service_update_attempts" ON public.login_attempts FOR UPDATE TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "service_delete_attempts" ON public.login_attempts FOR DELETE TO service_role USING (true);
+-- RLS policies for login_attempts (service role only)
+CREATE POLICY "service_select_attempts" ON public.login_attempts FOR SELECT
+  TO service_role USING (true);
+CREATE POLICY "service_insert_attempts" ON public.login_attempts FOR INSERT
+  TO service_role WITH CHECK (true);
+CREATE POLICY "service_update_attempts" ON public.login_attempts FOR UPDATE
+  TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_delete_attempts" ON public.login_attempts FOR DELETE
+  TO service_role USING (true);
 
+-- Index for faster username lookups
 CREATE INDEX idx_users_username ON public.users(username);
 CREATE INDEX idx_biometric_user_id ON public.biometric_profiles(user_id);
 CREATE INDEX idx_login_attempts_user_id ON public.login_attempts(user_id);

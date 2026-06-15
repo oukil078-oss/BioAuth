@@ -44,9 +44,14 @@ export default function Layout({ children, showNav = true }: LayoutProps) {
           <p className="text-xs text-slate-500">
             Biometric Authentication System — Higher Institute of Sciences
           </p>
-          <p className="text-xs text-slate-400">
-            Zakarya Oukil
-          </p>
+          <div className="flex items-center gap-4">
+            <Link to="/admin" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+              Admin
+            </Link>
+            <p className="text-xs text-slate-400">
+              Zakarya Oukil
+            </p>
+          </div>
         </div>
       </footer>
     </div>
