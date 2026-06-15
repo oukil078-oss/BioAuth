@@ -40,3 +40,35 @@ export async function detectFaceCount(video: HTMLVideoElement): Promise<number> 
 export function descriptorToArray(descriptor: Float32Array): number[] {
   return Array.from(descriptor);
 }
+
+export interface DetectedFaceResult {
+  descriptor: Float32Array;
+  box: { x: number; y: number; width: number; height: number };
+}
+
+export async function detectAllFacesWithDescriptors(
+  video: HTMLVideoElement
+): Promise<DetectedFaceResult[]> {
+  const results = await faceapi
+    .detectAllFaces(video)
+    .withFaceLandmarks()
+    .withFaceDescriptors();
+
+  return results.map((r) => ({
+    descriptor: r.descriptor,
+    box: {
+      x: r.detection.box.x,
+      y: r.detection.box.y,
+      width: r.detection.box.width,
+      height: r.detection.box.height,
+    },
+  }));
+}
+
+export function euclideanDistance(a: number[] | Float32Array, b: number[] | Float32Array): number {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
+  return Math.sqrt(sum);
+}
+
+export const STRICT_MATCH_THRESHOLD = 0.55;
