@@ -55,8 +55,8 @@ export default function Landing() {
           />
           <FeatureCard
             icon={<Fingerprint className="w-5 h-5" />}
-            title="Dual-Factor Auth"
-            description="Both password and facial verification required. No single point of compromise."
+            title="Triple-Factor Auth"
+            description="Password, face recognition, and fingerprint verification required. No single point of compromise."
           />
         </div>
       </section>
