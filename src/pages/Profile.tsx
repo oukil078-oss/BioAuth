@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { User, Shield, ScanFace, Calendar, Clock, LogOut, CheckCircle2, Lock, Hash } from 'lucide-react';
+import { User, Shield, ScanFace, Calendar, Clock, LogOut, CheckCircle2, Lock, Hash, Fingerprint } from 'lucide-react';
 import Layout from '../components/Layout';
 
 interface UserData {
@@ -78,10 +78,26 @@ export default function Profile() {
             </h2>
 
             <div className="space-y-4">
-              <InfoRow icon={<Hash className="w-4 h-4" />} label="Account ID" value={user.id.substring(0, 8) + '...'} />
-              <InfoRow icon={<User className="w-4 h-4" />} label="Username" value={user.username} />
-              <InfoRow icon={<Calendar className="w-4 h-4" />} label="Account Created" value={createdDate} />
-              <InfoRow icon={<Clock className="w-4 h-4" />} label="Last Login" value={lastLogin} />
+              <InfoRow
+                icon={<Hash className="w-4 h-4" />}
+                label="Account ID"
+                value={user.id.substring(0, 8) + '...'}
+              />
+              <InfoRow
+                icon={<User className="w-4 h-4" />}
+                label="Username"
+                value={user.username}
+              />
+              <InfoRow
+                icon={<Calendar className="w-4 h-4" />}
+                label="Account Created"
+                value={createdDate}
+              />
+              <InfoRow
+                icon={<Clock className="w-4 h-4" />}
+                label="Last Login"
+                value={lastLogin}
+              />
             </div>
 
             <hr className="my-6 border-slate-200" />
@@ -91,9 +107,30 @@ export default function Profile() {
             </h2>
 
             <div className="space-y-3">
-              <SecurityRow icon={<Lock className="w-4 h-4" />} label="Password Hashed" status={true} detail="SHA-256 with unique salt" />
-              <SecurityRow icon={<Shield className="w-4 h-4" />} label="Salt Applied" status={true} detail="16-byte random salt per user" />
-              <SecurityRow icon={<ScanFace className="w-4 h-4" />} label="Biometric Enrolled" status={user.face_enrolled} detail="128-dim face descriptor stored" />
+              <SecurityRow
+                icon={<Lock className="w-4 h-4" />}
+                label="Password Hashed"
+                status={true}
+                detail="SHA-256 with unique salt"
+              />
+              <SecurityRow
+                icon={<Shield className="w-4 h-4" />}
+                label="Salt Applied"
+                status={true}
+                detail="16-byte random salt per user"
+              />
+              <SecurityRow
+                icon={<ScanFace className="w-4 h-4" />}
+                label="Face Enrolled"
+                status={user.face_enrolled}
+                detail="128-dim face descriptor stored"
+              />
+              <SecurityRow
+                icon={<Fingerprint className="w-4 h-4" />}
+                label="Fingerprint Enrolled"
+                status={true}
+                detail="WebAuthn platform credential"
+              />
             </div>
 
             <hr className="my-6 border-slate-200" />

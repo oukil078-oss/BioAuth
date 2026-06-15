@@ -22,22 +22,40 @@ export default function FaceEnroll() {
   const [cameraReady, setCameraReady] = useState(false);
 
   useEffect(() => {
-    if (!userId) { navigate('/signup'); return; }
+    if (!userId) {
+      navigate('/signup');
+      return;
+    }
+
     let cancelled = false;
+
     async function init() {
       try {
         await loadModels();
         if (cancelled) return;
+
         setStatus('requesting_camera');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
         streamRef.current = stream;
+
         const video = videoRef.current!;
         video.srcObject = stream;
+
         await new Promise<void>((resolve, reject) => {
-          video.onloadedmetadata = () => { video.play().then(resolve).catch(reject); };
+          video.onloadedmetadata = () => {
+            video.play().then(resolve).catch(reject);
+          };
           video.onerror = () => reject(new Error('Video element error'));
         });
+
         if (cancelled) return;
         setCameraReady(true);
         setStatus('ready');
@@ -54,41 +72,83 @@ export default function FaceEnroll() {
         setStatus('error');
       }
     }
+
     init();
-    return () => { cancelled = true; detectingRef.current = false; streamRef.current?.getTracks().forEach((t) => t.stop()); };
+
+    return () => {
+      cancelled = true;
+      detectingRef.current = false;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
   }, [userId, navigate]);
 
   useEffect(() => {
     if (!cameraReady || status !== 'ready') return;
     detectingRef.current = true;
+
     let timeoutId: ReturnType<typeof setTimeout>;
+
     async function poll() {
       if (!detectingRef.current) return;
       const video = videoRef.current;
       if (video && video.readyState >= 2 && video.videoWidth > 0) {
-        try { const count = await detectFaceCount(video); if (detectingRef.current) setFaceCount(count); } catch { /* silent */ }
+        try {
+          const count = await detectFaceCount(video);
+          if (detectingRef.current) setFaceCount(count);
+        } catch {
+          // detection failed this frame, retry next tick
+        }
       }
-      if (detectingRef.current) timeoutId = setTimeout(poll, 400);
+      if (detectingRef.current) {
+        timeoutId = setTimeout(poll, 400);
+      }
     }
+
     poll();
-    return () => { detectingRef.current = false; clearTimeout(timeoutId); };
+    return () => {
+      detectingRef.current = false;
+      clearTimeout(timeoutId);
+    };
   }, [cameraReady, status]);
 
   const handleCapture = useCallback(async () => {
     if (!videoRef.current || !userId || status !== 'ready') return;
+
     detectingRef.current = false;
     setStatus('processing');
     setError('');
+
     try {
       const video = videoRef.current;
       const currentCount = await detectFaceCount(video);
-      if (currentCount === 0) { setError('No face detected. Please center your face in the frame.'); setStatus('ready'); return; }
-      if (currentCount > 1) { setError('Multiple faces detected. Ensure only your face is visible.'); setStatus('ready'); return; }
+
+      if (currentCount === 0) {
+        setError('No face detected. Please center your face in the frame.');
+        setStatus('ready');
+        return;
+      }
+      if (currentCount > 1) {
+        setError('Multiple faces detected. Ensure only your face is visible.');
+        setStatus('ready');
+        return;
+      }
+
       const result = await detectFace(video);
-      if (!result) { setError('Could not extract face features. Adjust lighting and try again.'); setStatus('ready'); return; }
+      if (!result) {
+        setError('Could not extract face features. Adjust lighting and try again.');
+        setStatus('ready');
+        return;
+      }
+
       const descriptor = descriptorToArray(result.descriptor);
       const response = await enrollFace(userId, descriptor);
-      if (response.error) { setError(response.error); setStatus('ready'); return; }
+
+      if (response.error) {
+        setError(response.error);
+        setStatus('ready');
+        return;
+      }
+
       streamRef.current?.getTracks().forEach((t) => t.stop());
       setStatus('success');
     } catch {
@@ -109,7 +169,9 @@ export default function FaceEnroll() {
                 <ScanFace className="w-5 h-5 text-teal-600" />
               </div>
               <h1 className="text-2xl font-bold text-slate-900">Face Enrollment</h1>
-              <p className="text-sm text-slate-500 mt-2">{username ? `Welcome, ${username}. ` : ''}Register your face for biometric authentication.</p>
+              <p className="text-sm text-slate-500 mt-2">
+                {username ? `Welcome, ${username}. ` : ''}Register your face for biometric authentication.
+              </p>
             </div>
 
             {status === 'success' ? (
@@ -118,8 +180,15 @@ export default function FaceEnroll() {
                   <CheckCircle2 className="w-8 h-8 text-green-600" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Face Enrolled Successfully</h2>
-                <p className="text-sm text-slate-500 mb-6">Your biometric data has been securely stored. You can now sign in using your face.</p>
-                <button onClick={() => navigate('/signin')} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-medium hover:bg-slate-700 transition-colors">Go to Sign In</button>
+                <p className="text-sm text-slate-500 mb-6">
+                  Your face has been securely stored. Now register your fingerprint for dual biometric security.
+                </p>
+                <button
+                  onClick={() => navigate('/fingerprint-enroll', { state: { userId, username } })}
+                  className="bg-slate-900 text-white px-6 py-3 rounded-xl font-medium hover:bg-slate-700 transition-colors"
+                >
+                  Continue to Fingerprint Enrollment
+                </button>
               </div>
             ) : (
               <>
@@ -129,41 +198,85 @@ export default function FaceEnroll() {
                     <span>{error}</span>
                   </div>
                 )}
+
                 <div className="relative rounded-xl overflow-hidden bg-slate-900 mb-4 aspect-[4/3]">
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                    style={{ transform: 'scaleX(-1)' }}
+                  />
+
                   {!cameraReady && (
                     <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center gap-3">
                       <Loader2 className="w-8 h-8 text-teal-400 animate-spin" />
-                      <p className="text-sm text-slate-300 font-medium">{status === 'loading_models' ? 'Loading AI models…' : 'Starting camera…'}</p>
-                      <p className="text-xs text-slate-500 text-center max-w-[200px]">{status === 'loading_models' ? 'Downloading recognition models — first load only' : 'Please allow camera access when prompted'}</p>
+                      <p className="text-sm text-slate-300 font-medium">
+                        {status === 'loading_models' ? 'Loading AI models\u2026' : 'Starting camera\u2026'}
+                      </p>
+                      <p className="text-xs text-slate-500 text-center max-w-[200px]">
+                        {status === 'loading_models'
+                          ? 'Downloading recognition models \u2014 first load only'
+                          : 'Please allow camera access when prompted'}
+                      </p>
                     </div>
                   )}
+
                   {cameraReady && (
                     <>
                       <div className="absolute inset-0 border-2 border-teal-400/50 rounded-xl pointer-events-none" />
                       <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-lg px-2.5 py-1">
-                        <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${faceCount === 1 ? 'bg-green-400' : faceCount > 1 ? 'bg-yellow-400' : 'bg-red-400'}`} />
-                        <span className="text-xs text-white font-medium">{faceCount === 1 ? 'Face detected' : faceCount > 1 ? `${faceCount} faces — remove others` : 'No face detected'}</span>
+                        <div
+                          className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                            faceCount === 1
+                              ? 'bg-green-400'
+                              : faceCount > 1
+                              ? 'bg-yellow-400'
+                              : 'bg-red-400'
+                          }`}
+                        />
+                        <span className="text-xs text-white font-medium">
+                          {faceCount === 1
+                            ? 'Face detected'
+                            : faceCount > 1
+                            ? `${faceCount} faces \u2014 remove others`
+                            : 'No face detected'}
+                        </span>
                       </div>
                     </>
                   )}
+
                   {status === 'processing' && (
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 className="w-8 h-8 text-white animate-spin" />
-                        <p className="text-sm text-white font-medium">Processing face data…</p>
+                        <p className="text-sm text-white font-medium">Processing face data\u2026</p>
                       </div>
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 text-center mb-4">Center your face in the frame. Ensure good lighting and a plain background.</p>
+
+                <p className="text-xs text-slate-500 text-center mb-4">
+                  Center your face in the frame. Ensure good lighting and a plain background.
+                </p>
+
                 {status === 'error' ? (
-                  <button onClick={() => window.location.reload()} className="w-full inline-flex items-center justify-center gap-2 border border-slate-300 text-slate-700 py-3 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
-                    <RefreshCw className="w-4 h-4" /> Retry
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full inline-flex items-center justify-center gap-2 border border-slate-300 text-slate-700 py-3 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Retry
                   </button>
                 ) : (
-                  <button onClick={handleCapture} disabled={status !== 'ready' || faceCount !== 1} className="w-full bg-teal-600 text-white py-3 rounded-xl font-medium hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
-                    <Camera className="w-4 h-4" /> Capture &amp; Enroll Face
+                  <button
+                    onClick={handleCapture}
+                    disabled={status !== 'ready' || faceCount !== 1}
+                    className="w-full bg-teal-600 text-white py-3 rounded-xl font-medium hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Capture &amp; Enroll Face
                   </button>
                 )}
               </>
