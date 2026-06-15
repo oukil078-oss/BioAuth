@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Camera, Loader2, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import Layout from '../components/Layout';
 import { loadModels, detectFace, detectFaceCount, descriptorToArray } from '../lib/faceDetection';
 import { verifyFace } from '../lib/supabase';

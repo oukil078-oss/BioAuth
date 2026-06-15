@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, CameraOff, RefreshCw, Radio, ShieldAlert, X } from 'lucide-react';
 import { loadModels, detectAllFacesWithDescriptors, euclideanDistance, STRICT_MATCH_THRESHOLD } from '../../lib/faceDetection';
 import { adminGetEnrolledFaces, adminLogRecognition } from '../../lib/supabase';
+import { isMirroredOnXAxis, mapDetectionBoxToOverlay } from '../../lib/faceOverlayGeometry';
 import type { AdminUser } from '../../pages/AdminDashboard';
 
 interface EnrolledFace {
@@ -31,6 +32,7 @@ interface Props {
 
 export default function CameraView({ adminId, onEvent }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraContainerRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectingRef = useRef(false);
   const sessionIdRef = useRef(crypto.randomUUID());
@@ -42,6 +44,7 @@ export default function CameraView({ adminId, onEvent }: Props) {
   const [loading, setLoading] = useState(false);
   const [overlays, setOverlays] = useState<FaceOverlay[]>([]);
   const [faceCount, setFaceCount] = useState(0);
+  const [showDebugOverlay, setShowDebugOverlay] = useState(false);
 
   useEffect(() => {
     loadModels().then(() => setModelsReady(true));
@@ -118,17 +121,14 @@ export default function CameraView({ adminId, onEvent }: Props) {
       const faces = await detectAllFacesWithDescriptors(video);
       setFaceCount(faces.length);
 
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
-      const displayWidth = video.clientWidth;
-      const displayHeight = video.clientHeight;
+      const container = cameraContainerRef.current;
+      const displayWidth = container?.clientWidth ?? video.clientWidth;
+      const displayHeight = container?.clientHeight ?? video.clientHeight;
 
-      // object-cover: scale uniformly to cover, then crop the overflow
-      const scale = Math.max(displayWidth / videoWidth, displayHeight / videoHeight);
-      const renderedW = videoWidth * scale;
-      const renderedH = videoHeight * scale;
-      const offsetX = (displayWidth - renderedW) / 2;
-      const offsetY = (displayHeight - renderedH) / 2;
+      const computedStyle = window.getComputedStyle(video);
+      const objectFit = (computedStyle.objectFit || 'fill') as 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
+      const objectPosition = computedStyle.objectPosition || '50% 50%';
+      const mirrored = isMirroredOnXAxis(video);
 
       const newOverlays: FaceOverlay[] = [];
       const now = Date.now();
@@ -136,17 +136,24 @@ export default function CameraView({ adminId, onEvent }: Props) {
       for (const face of faces) {
         const result = matchFace(face.descriptor);
 
-        // Map face box to display coordinates accounting for object-cover + CSS mirror
-        const faceW = face.box.width * scale;
-        const faceH = face.box.height * scale;
-        const faceX = displayWidth - (face.box.x * scale + offsetX) - faceW;
-        const faceY = face.box.y * scale + offsetY;
+        const mapped = mapDetectionBoxToOverlay(
+          face.box,
+          {
+            sourceWidth: video.videoWidth,
+            sourceHeight: video.videoHeight,
+            viewportWidth: displayWidth,
+            viewportHeight: displayHeight,
+            objectFit,
+            objectPosition,
+          },
+          mirrored
+        );
 
         const overlay: FaceOverlay = {
-          x: faceX,
-          y: faceY,
-          width: faceW,
-          height: faceH,
+          x: mapped.x,
+          y: mapped.y,
+          width: mapped.width,
+          height: mapped.height,
           label: 'UNKNOWN',
           status: 'unknown',
         };
@@ -209,6 +216,7 @@ export default function CameraView({ adminId, onEvent }: Props) {
             onClick={loadEnrolledFaces}
             className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
             title="Refresh enrolled faces"
+            data-testid="refresh-enrolled-faces-button"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -216,6 +224,7 @@ export default function CameraView({ adminId, onEvent }: Props) {
             <button
               onClick={stopCamera}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-colors"
+              data-testid="stop-camera-button"
             >
               <CameraOff className="w-3 h-3" />
               Stop
@@ -225,6 +234,7 @@ export default function CameraView({ adminId, onEvent }: Props) {
               onClick={startCamera}
               disabled={!modelsReady || loading}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-500/20 transition-colors disabled:opacity-40"
+              data-testid="start-camera-button"
             >
               <Camera className="w-3 h-3" />
               {loading ? 'Starting...' : 'Start'}
@@ -233,7 +243,7 @@ export default function CameraView({ adminId, onEvent }: Props) {
         </div>
       </div>
 
-      <div className="relative aspect-video bg-black overflow-hidden">
+      <div ref={cameraContainerRef} className="relative aspect-video bg-black overflow-hidden" data-testid="camera-overlay-container">
         <video
           ref={videoRef}
           autoPlay
@@ -241,12 +251,14 @@ export default function CameraView({ adminId, onEvent }: Props) {
           muted
           className="w-full h-full object-cover"
           style={{ transform: 'scaleX(-1)' }}
+          data-testid="admin-live-video"
         />
 
         {overlays.map((face, i) => (
           <div
             key={i}
             className="absolute pointer-events-none"
+            data-testid={`face-overlay-${face.status}-${i}`}
             style={{
               left: face.x,
               top: face.y,
@@ -259,8 +271,9 @@ export default function CameraView({ adminId, onEvent }: Props) {
               <>
                 <div
                   className="absolute rounded-2xl overflow-hidden"
+                  data-testid={`face-admin-blur-${i}`}
                   style={{
-                    inset: '-15%',
+                    inset: 0,
                     backdropFilter: 'blur(24px) saturate(1.4) brightness(1.1)',
                     WebkitBackdropFilter: 'blur(24px) saturate(1.4) brightness(1.1)',
                     background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(6,95,70,0.18) 100%)',
@@ -270,6 +283,7 @@ export default function CameraView({ adminId, onEvent }: Props) {
                 />
                 <div
                   className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-3 py-1"
+                  data-testid={`face-admin-label-${i}`}
                   style={{
                     top: '-32px',
                     background: 'linear-gradient(135deg, rgba(5,150,105,0.95) 0%, rgba(4,120,87,0.95) 100%)',
@@ -290,9 +304,10 @@ export default function CameraView({ adminId, onEvent }: Props) {
             {/* KNOWN: green border with name */}
             {face.status === 'known' && (
               <>
-                <div className="absolute inset-0 border-2 border-emerald-400/80 rounded-lg" />
+                <div className="absolute inset-0 border-2 border-emerald-400/80 rounded-lg" data-testid={`face-known-box-${i}`} />
                 <div
                   className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-emerald-500/90 backdrop-blur-sm rounded-full px-2.5 py-0.5"
+                  data-testid={`face-known-label-${i}`}
                   style={{ top: '-26px', boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}
                 >
                   <span className="text-[11px] font-semibold text-white whitespace-nowrap">{face.label}</span>
@@ -311,16 +326,32 @@ export default function CameraView({ adminId, onEvent }: Props) {
             {/* UNKNOWN: red border with centered X */}
             {face.status === 'unknown' && (
               <>
-                <div className="absolute inset-0 border-2 border-red-500/80 rounded-lg" style={{ boxShadow: '0 0 15px rgba(239,68,68,0.2)' }} />
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 border-2 border-red-500/80 rounded-lg" data-testid={`face-unknown-box-${i}`} style={{ boxShadow: '0 0 15px rgba(239,68,68,0.2)' }} />
+                <div className="absolute inset-0 flex items-center justify-center" data-testid={`face-unknown-cross-${i}`}>
                   <X className="text-red-500/60" style={{ width: '40%', height: '40%' }} strokeWidth={2.5} />
                 </div>
                 <div
                   className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 bg-red-500/90 backdrop-blur-sm rounded-full px-2.5 py-0.5"
+                  data-testid={`face-unknown-label-${i}`}
                   style={{ top: '-26px', boxShadow: '0 2px 8px rgba(239,68,68,0.3)' }}
                 >
                   <span className="text-[11px] font-bold text-white whitespace-nowrap">UNKNOWN</span>
                 </div>
+              </>
+            )}
+
+            {showDebugOverlay && (
+              <>
+                <div
+                  className="absolute w-2 h-2 bg-cyan-300 rounded-full -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: '50%', top: '50%' }}
+                  data-testid={`face-debug-center-${i}`}
+                />
+                <div
+                  className="absolute inset-0 border border-cyan-300/70 rounded-lg"
+                  style={{ borderStyle: 'dashed' }}
+                  data-testid={`face-debug-outline-${i}`}
+                />
               </>
             )}
           </div>
@@ -342,7 +373,19 @@ export default function CameraView({ adminId, onEvent }: Props) {
           <p className="text-[10px] text-amber-400/80 font-medium">
             PRIVATE DEMO - Authorized classroom surveillance testing only
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setShowDebugOverlay((prev) => !prev)}
+              className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
+                showDebugOverlay
+                  ? 'text-cyan-300 border-cyan-400/40 bg-cyan-500/10'
+                  : 'text-slate-500 border-slate-700 hover:text-cyan-300 hover:border-cyan-500/40'
+              }`}
+              data-testid="overlay-debug-toggle"
+            >
+              Debug {showDebugOverlay ? 'On' : 'Off'}
+            </button>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-emerald-400" />
               <span className="text-[10px] text-slate-500">Known</span>

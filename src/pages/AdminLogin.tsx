@@ -62,6 +62,7 @@ export default function AdminLogin() {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Admin username"
                 className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
+                data-testid="admin-login-username-input"
               />
             </div>
             <div>
@@ -73,11 +74,13 @@ export default function AdminLogin() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Admin password"
                   className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all pr-10"
+                  data-testid="admin-login-password-input"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  data-testid="admin-login-toggle-password-button"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -87,6 +90,7 @@ export default function AdminLogin() {
               type="submit"
               disabled={!username || !password || loading}
               className="w-full bg-emerald-600 text-white py-3 rounded-xl font-medium hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              data-testid="admin-login-submit-button"
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
